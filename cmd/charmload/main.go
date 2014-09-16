@@ -45,6 +45,7 @@ func load() error {
 	loggingConfig := flags.String("logging-config", "", "specify log levels for modules e.g. <root>=TRACE")
 	showLog := flags.Bool("show-log", false, "if set, write log messages to stderr")
 	storeUser := flags.String("u", "admin:example-passwd", "the colon separated user:password for charmstore")
+	officialSeriesOnly := flags.Bool("official-series-only", false, "import only charms with Official Series. These are promulgated charms.")
 	err := flags.Parse(os.Args[1:])
 	if flag.ErrHelp == err {
 		flag.Usage()
@@ -96,6 +97,12 @@ func load() error {
 		URLs := []*charm.URL{charmURL}
 		schema, name := charmURL.Schema, charmURL.Name
 		URLs = addPromulgatedCharmURLs(tip.OfficialSeries, schema, name, URLs)
+		if *officialSeriesOnly {
+			URLs = URLs[1:]
+			if len(URLs) == 0 {
+				continue
+			}
+		}
 		err = publishBazaarBranch(*storeURL, *storeUser, URLs, branchURL, tip.Revision)
 		if err != nil {
 			logger.Errorf("cannot publish branch %v to charm store: %v", branchURL, err)
