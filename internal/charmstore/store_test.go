@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"sort"
 	"time"
@@ -868,3 +869,55 @@ var fakeBlobSize, fakeBlobHash = func() (int64, string) {
 	h.Write(b)
 	return int64(len(b)), fmt.Sprintf("%x", h.Sum(nil))
 }()
+
+var exportTestCharms = map[string]string{"wordpress": "cs:precies/wordpress-23", "mysql": "cs:precise/mysql-42"}
+
+func (s *StoreSuite) TestSuccessfulExport(c *gc.C) {
+	store, err := NewStore(s.Session.DB("mongodoctoelasticsearch"))
+	c.Assert(err, gc.IsNil)
+	store.ES = StoreElasticSearch{s.ES, true}
+	c.Assert(err, gc.IsNil)
+	s.addCharmsToStore(store)
+	err = store.ExportToElasticSearch()
+	c.Assert(err, gc.IsNil)
+
+	var expected mongodoc.Entity
+	var actual mongodoc.Entity
+	for _, ref := range exportTestCharms {
+		store.DB.Entities().FindId(ref).One(&expected)
+		err = s.ES.GetDocument("charmstore", "entity", url.QueryEscape(ref), &actual)
+		c.Assert(err, gc.IsNil)
+		// can't use deepequals because the pointers differ
+		//c.Assert(expected, gc.DeepEquals, actual)
+
+		// can't compare json strings because map orders come back different
+		//expectedjson,_ = json.Marshal(expected)
+		//actauljson,_ = json.Marshal(actual)
+		//c.Assert(expectedjson, gc.Equals, actualjson)
+
+		// wanted: a more complete way to compare
+		c.Assert(expected.URL.String(), gc.Equals, actual.URL.String())
+		c.Assert(expected.BlobHash256, gc.Equals, actual.BlobHash256)
+		c.Assert(expected.Size, gc.Equals, actual.Size)
+		c.Assert(expected.BlobName, gc.Equals, actual.BlobName)
+		c.Assert(expected.CharmProvidedInterfaces, gc.DeepEquals, actual.CharmProvidedInterfaces)
+		c.Assert(expected.CharmRequiredInterfaces, gc.DeepEquals, actual.CharmRequiredInterfaces)
+		c.Assert(expected.BundleReadMe, gc.Equals, actual.BundleReadMe)
+	}
+}
+
+func (s *StoreSuite) addCharmsToStore(store *Store) {
+	for name, ref := range exportTestCharms {
+		charmArchive := testing.Charms.CharmDir(name)
+		url, _ := charm.ParseReference(ref)
+		store.AddCharmWithArchive(url, charmArchive)
+	}
+}
+
+func (s *StoreSuite) TestSESPutIsNoopWithNoESConfigured(c *gc.C) {
+	store, err := NewStore(s.Session.DB("mongodoctoelasticsearch"))
+	c.Assert(err, gc.IsNil)
+	var entity mongodoc.Entity
+	err = store.ES.Put(&entity)
+	c.Assert(err, gc.IsNil)
+}

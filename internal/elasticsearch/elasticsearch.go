@@ -84,6 +84,9 @@ func (db *Database) PutDocument(index, type_, id string, doc interface{}) error 
 		return errgo.Mask(err)
 	}
 	response, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return errgo.Mask(err)
+	}
 	defer response.Body.Close()
 	body, _ := ioutil.ReadAll(response.Body)
 	if (response.StatusCode != http.StatusCreated) && (response.StatusCode != http.StatusOK) {

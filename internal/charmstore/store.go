@@ -6,6 +6,7 @@ package charmstore
 import (
 	"fmt"
 	"io"
+	"net/url"
 	"sync"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"gopkg.in/mgo.v2/bson"
 
 	"github.com/juju/charmstore/internal/blobstore"
+	"github.com/juju/charmstore/internal/elasticsearch"
 	"github.com/juju/charmstore/internal/mongodoc"
 	"github.com/juju/charmstore/params"
 )
@@ -23,6 +25,7 @@ import (
 type Store struct {
 	DB        StoreDatabase
 	BlobStore *blobstore.Store
+	ES        StoreElasticSearch
 
 	// Cache for statistics key words (two generations).
 	cacheMu       sync.RWMutex
@@ -397,4 +400,34 @@ func (s StoreDatabase) Collections() []*mgo.Collection {
 		cs[i] = f(s)
 	}
 	return cs
+}
+
+// StoreElasticSearch wraps an elasticsearch.Database with index and type
+// defaults as well as nul ops if elasticsearch is not configured
+type StoreElasticSearch struct {
+	*elasticsearch.Database
+	Configured bool
+}
+
+// Put inserts the mongodoc.Entity into elasticsearch iff elasticsearch
+// is configured.
+func (ses *StoreElasticSearch) Put(entity *mongodoc.Entity) error {
+	if !ses.Configured {
+		return nil
+	}
+	return ses.PutDocument("charmstore", "entity", url.QueryEscape(entity.URL.String()), entity)
+}
+
+// ExportToElasticSearch reads all of the mongodoc Entities and writes
+// them to elasticsearch
+func (store *Store) ExportToElasticSearch() error {
+	var result mongodoc.Entity
+	iter := store.DB.Entities().Find(nil).Iter()
+	for iter.Next(&result) {
+		store.ES.Put(&result)
+	}
+	if err := iter.Close(); err != nil {
+		return err
+	}
+	return nil
 }
