@@ -52,7 +52,7 @@ const (
 // JUJU_TEST_ELASTICSEARCH=none go test -v ./internal/elasticsearch -gocheck.v
 // Tests can start an elasticsearch instance themselves (this take 6 seconds):
 // JUJU_TEST_ELASTICSEARCH= go test -v ./internal/elasticsearch -gocheck.v
-func ElasticSearchTestPackage(t *testing.T) {
+func ElasticSearchTestPackage(t *testing.T, cb func(t *testing.T)) {
 	if os.Getenv("JUJU_TEST_ELASTICSEARCH") == "none" {
 		return
 	}
@@ -68,7 +68,11 @@ func ElasticSearchTestPackage(t *testing.T) {
 			panic("invalid JUJU_TEST_ELASTICSEARCH value. expect an valid tcp port or none")
 		}
 	}
-	gc.TestingT(t)
+	if cb != nil {
+		cb(t)
+	} else {
+		gc.TestingT(t)
+	}
 }
 
 func (es *ElasticSearchInstance) kill(sig syscall.Signal) {
@@ -217,19 +221,19 @@ func (es *ElasticSearchInstance) dropAll(db *Database) error {
 
 type ElasticSearchSuite struct {
 	*ElasticSearchInstance
-	db *Database
+	ES *Database
 }
 
 func (s *ElasticSearchSuite) SetUpSuite(c *gc.C) {
 	s.ElasticSearchInstance = elasticSearchServer
-	s.db = &Database{"127.0.0.1", elasticSearchServer.HTTPPort}
+	s.ES = &Database{"127.0.0.1", elasticSearchServer.HTTPPort}
 }
 
 func (s *ElasticSearchSuite) TearDownSuite(c *gc.C) {
 }
 
 func (s *ElasticSearchSuite) SetUpTest(c *gc.C) {
-	s.dropAll(s.db)
+	s.dropAll(s.ES)
 }
 
 func (s *ElasticSearchSuite) TearDownTest(c *gc.C) {

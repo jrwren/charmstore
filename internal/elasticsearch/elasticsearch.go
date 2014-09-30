@@ -25,8 +25,8 @@ import (
 )
 
 type Database struct {
-	server string
-	port   int
+	Server string
+	Port   int
 }
 
 // GetDocument retrieves the document with the given index, type_ and id and
@@ -86,7 +86,6 @@ func (db *Database) PutDocument(index, type_, id string, doc interface{}) error 
 	response, err := http.DefaultClient.Do(req)
 	defer response.Body.Close()
 	body, _ := ioutil.ReadAll(response.Body)
-	logger.Debugf("PutDocument response:%s", body)
 	if (response.StatusCode != http.StatusCreated) && (response.StatusCode != http.StatusOK) {
 		// Error checking within this error handler is not helpful.
 		return errgo.Newf("ElasticSearch PUT response status: %d %s, body: %s", response.StatusCode, response.Status, body)
@@ -99,7 +98,7 @@ func (db *Database) url(pathParts ...string) string {
 	path := path.Join(pathParts...)
 	url := &url.URL{
 		Scheme: "http",
-		Host:   fmt.Sprintf("%s:%d", db.server, db.port),
+		Host:   fmt.Sprintf("%s:%d", db.Server, db.Port),
 		Path:   path,
 	}
 	return url.String()

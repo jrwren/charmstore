@@ -11,7 +11,7 @@ import (
 )
 
 func TestPackage(t *testing.T) {
-	ElasticSearchTestPackage(t)
+	ElasticSearchTestPackage(t, nil)
 }
 
 type IsolatedElasticSearchSuite struct {
@@ -42,11 +42,11 @@ func (s *IsolatedElasticSearchSuite) TestSuccessfulPostDocument(c *gc.C) {
 	doc := map[string]string{
 		"a": "b",
 	}
-	id, err := s.db.PostDocument("testindex", "testtype", doc)
+	id, err := s.ES.PostDocument("testindex", "testtype", doc)
 	c.Assert(err, gc.IsNil)
 	c.Assert(id, gc.NotNil)
 	var result map[string]string
-	err = s.db.GetDocument("testindex", "testtype", id, &result)
+	err = s.ES.GetDocument("testindex", "testtype", id, &result)
 	c.Assert(err, gc.IsNil)
 }
 
@@ -54,10 +54,10 @@ func (s *IsolatedElasticSearchSuite) TestSuccessfulPutNewDocument(c *gc.C) {
 	doc := map[string]string{
 		"a": "b",
 	}
-	err := s.db.PutDocument("testindex", "testtype", "a", doc)
+	err := s.ES.PutDocument("testindex", "testtype", "a", doc)
 	c.Assert(err, gc.IsNil)
 	var result map[string]string
-	err = s.db.GetDocument("testindex", "testtype", "a", &result)
+	err = s.ES.GetDocument("testindex", "testtype", "a", &result)
 	c.Assert(result["a"], gc.Equals, "b")
 }
 
@@ -65,12 +65,12 @@ func (s *IsolatedElasticSearchSuite) TestSuccessfulPutUpdatedDocument(c *gc.C) {
 	doc := map[string]string{
 		"a": "b",
 	}
-	err := s.db.PutDocument("testindex", "testtype", "a", doc)
+	err := s.ES.PutDocument("testindex", "testtype", "a", doc)
 	doc["a"] = "c"
-	err = s.db.PutDocument("testindex", "testtype", "a", doc)
+	err = s.ES.PutDocument("testindex", "testtype", "a", doc)
 	c.Assert(err, gc.IsNil)
 	var result map[string]string
-	err = s.db.GetDocument("testindex", "testtype", "a", &result)
+	err = s.ES.GetDocument("testindex", "testtype", "a", &result)
 	c.Assert(result["a"], gc.Equals, "c")
 }
 
@@ -78,27 +78,27 @@ func (s *IsolatedElasticSearchSuite) TestDelete(c *gc.C) {
 	doc := map[string]string{
 		"a": "b",
 	}
-	s.db.PostDocument("testindex", "testtype", doc)
-	err := s.db.DeleteIndex("testindex")
+	s.ES.PostDocument("testindex", "testtype", doc)
+	err := s.ES.DeleteIndex("testindex")
 	c.Assert(err, gc.IsNil)
 }
 
 func (s *IsolatedElasticSearchSuite) TestDeleteErrorOnNonExistingIndex(c *gc.C) {
-	err := s.db.DeleteIndex("nope")
+	err := s.ES.DeleteIndex("nope")
 	terr := err.(*ErrNotFound)
 	c.Assert(terr.Message(), gc.Equals, "index nope not found")
 }
 
 func (s *IsolatedElasticSearchSuite) TestIndexesEmpty(c *gc.C) {
-	indexes, err := s.db.ListAllIndexes()
+	indexes, err := s.ES.ListAllIndexes()
 	c.Assert(err, gc.IsNil)
 	c.Assert(indexes, gc.HasLen, 0)
 }
 
 func (s *IsolatedElasticSearchSuite) TestIndexesCreatedAutomatically(c *gc.C) {
 	doc := map[string]string{"a": "b"}
-	s.db.PostDocument("testindex", "testtype", doc)
-	indexes, err := s.db.ListAllIndexes()
+	s.ES.PostDocument("testindex", "testtype", doc)
+	indexes, err := s.ES.ListAllIndexes()
 	c.Assert(err, gc.IsNil)
 	c.Assert(indexes[0], gc.Equals, "testindex")
 }
