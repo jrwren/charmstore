@@ -25,7 +25,7 @@ import (
 type Store struct {
 	DB        StoreDatabase
 	BlobStore *blobstore.Store
-	ES        StoreElasticSearch
+	ES        *StoreElasticSearch
 
 	// Cache for statistics key words (two generations).
 	cacheMu       sync.RWMutex
@@ -45,6 +45,11 @@ func NewStore(db *mgo.Database) (*Store, error) {
 		return nil, errgo.Notef(err, "cannot ensure indexes")
 	}
 	return s, nil
+}
+
+//SetES configures the optional ElasticSearch connection for the Store
+func (s *Store) SetES(es *elasticsearch.Database) {
+	s.ES = (*StoreElasticSearch)(es)
 }
 
 func (s *Store) ensureIndexes() error {
@@ -404,18 +409,15 @@ func (s StoreDatabase) Collections() []*mgo.Collection {
 
 // StoreElasticSearch wraps an elasticsearch.Database with index and type
 // defaults as well as nul ops if elasticsearch is not configured
-type StoreElasticSearch struct {
-	*elasticsearch.Database
-	Configured bool
-}
+type StoreElasticSearch elasticsearch.Database
 
-// Put inserts the mongodoc.Entity into elasticsearch iff elasticsearch
+// Put inserts the mongodoc.Entity into elasticsearch if elasticsearch
 // is configured.
 func (ses *StoreElasticSearch) Put(entity *mongodoc.Entity) error {
-	if !ses.Configured {
+	if ses == nil {
 		return nil
 	}
-	return ses.PutDocument("charmstore", "entity", url.QueryEscape(entity.URL.String()), entity)
+	return (*elasticsearch.Database)(ses).PutDocument("charmstore", "entity", url.QueryEscape(entity.URL.String()), entity)
 }
 
 // ExportToElasticSearch reads all of the mongodoc Entities and writes

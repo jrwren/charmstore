@@ -875,7 +875,7 @@ var exportTestCharms = map[string]string{"wordpress": "cs:precies/wordpress-23",
 func (s *StoreSuite) TestSuccessfulExport(c *gc.C) {
 	store, err := NewStore(s.Session.DB("mongodoctoelasticsearch"))
 	c.Assert(err, gc.IsNil)
-	store.ES = StoreElasticSearch{s.ES, true}
+	store.SetES(s.ES)
 	c.Assert(err, gc.IsNil)
 	s.addCharmsToStore(store)
 	err = store.ExportToElasticSearch()

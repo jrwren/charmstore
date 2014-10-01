@@ -226,7 +226,7 @@ type ElasticSearchSuite struct {
 
 func (s *ElasticSearchSuite) SetUpSuite(c *gc.C) {
 	s.ElasticSearchInstance = elasticSearchServer
-	s.ES = &Database{"127.0.0.1", elasticSearchServer.HTTPPort}
+	s.ES = &Database{fmt.Sprintf("127.0.0.1:%d", elasticSearchServer.HTTPPort)}
 }
 
 func (s *ElasticSearchSuite) TearDownSuite(c *gc.C) {
