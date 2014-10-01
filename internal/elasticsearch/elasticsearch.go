@@ -25,8 +25,7 @@ import (
 )
 
 type Database struct {
-	Server string
-	Port   int
+	Addr string
 }
 
 // GetDocument retrieves the document with the given index, type_ and id and
@@ -101,7 +100,7 @@ func (db *Database) url(pathParts ...string) string {
 	path := path.Join(pathParts...)
 	url := &url.URL{
 		Scheme: "http",
-		Host:   fmt.Sprintf("%s:%d", db.Server, db.Port),
+		Host:  db.Addr,
 		Path:   path,
 	}
 	return url.String()
