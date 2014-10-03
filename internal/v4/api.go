@@ -6,8 +6,8 @@ package v4
 import (
 	"archive/zip"
 	"encoding/json"
-	"io"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"sort"
 	"strconv"
@@ -565,22 +565,6 @@ func (h *Handler) serveESProxy(proxyResponse http.ResponseWriter, proxyRequest *
 	target := proxyRequest.URL
 	target.Scheme = "http"
 	target.Host = h.store.ES.Database.Addr
-	req, err := http.NewRequest(proxyRequest.Method, target.String(), proxyRequest.Body)
-	if err != nil {
-		router.WriteError(proxyResponse, errgo.Newf("could not create request %v", err))
-		return
-	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		router.WriteError(proxyResponse, errgo.Newf("could not perform request %v", err))
-		return
-	}
-	defer resp.Body.Close()
-	for key, values := range resp.Header {
-		for _, value := range values {
-			proxyResponse.Header().Add(key, value)
-		}
-	}
-	proxyResponse.WriteHeader(resp.StatusCode)
-	io.Copy(proxyResponse, resp.Body)
+	proxy := httputil.NewSingleHostReverseProxy(target)
+	proxy.ServeHTTP(proxyResponse, proxyRequest)
 }
