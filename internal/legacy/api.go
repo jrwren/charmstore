@@ -73,6 +73,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"gopkg.in/errgo.v1"
 	"gopkg.in/juju/charm.v4"
@@ -100,6 +101,7 @@ func NewAPIHandler(store *charmstore.Store, config charmstore.ServerParams) http
 	}
 	h.handle("/charm-info", router.HandleJSON(h.serveCharmInfo))
 	h.handle("/charm/", router.HandleErrors(h.serveCharm))
+	h.handle("/charm-event", router.HandleJSON(h.serveCharmEvent))
 	return h
 }
 
@@ -220,4 +222,53 @@ func (h *Handler) updateEntitySHA256(curl *charm.Reference) (string, error) {
 	go updateEntitySHA256(h.store, curl, sum256)
 
 	return sum256, nil
+}
+
+func (h *Handler) serveCharmEvent(_ http.Header, req *http.Request) (interface{}, error) {
+	response := make(map[string]*charm.EventResponse)
+	for _, url := range req.Form["charms"] {
+		c := &charm.EventResponse{}
+		// Intentionally not supporting long_keys query parameter which previous
+		// charmstore supported as juju publish command does not use it.
+		response[url] = c
+		var entity mongodoc.Entity
+		curl, _, err := h.resolveURLStr(url)
+		if err != nil {
+			if errgo.Cause(err) == params.ErrNotFound {
+				err = errNotFound
+			}
+		} else {
+			norev_curl, _ := charm.ParseReference(url)
+			if norev_curl.Revision != -1 {
+				fmt.Println("wtff: ", norev_curl.Revision, " ", norev_curl.String())
+				err = errgo.Newf("CharmEvent: got charm URL with revision: %s", url)
+			} else {
+				err = h.store.DB.Entities().FindId(curl).One(&entity)
+				if err == mgo.ErrNotFound {
+					// The old API actually returned "entry not found"
+					// on *any* error, but it seems reasonable to be
+					// a little more descriptive for other errors.
+					err = errNotFound
+				}
+			}
+		}
+		// Prepare the response part for this charm.
+		if err == nil {
+			c.Revision = curl.Revision
+			c.Kind = "published"
+			c.Time = entity.UploadTime.UTC().Format(time.RFC3339)
+			if digest, found := entity.ExtraInfo[params.BzrDigestKey]; found {
+				if err := json.Unmarshal(digest, &c.Digest); err != nil {
+					c.Errors = append(c.Errors, "cannot unmarshal digest: "+err.Error())
+				}
+			}
+			h.store.IncCounterAsync(charmStatsKey(curl, params.StatsCharmEvent))
+		} else {
+			c.Errors = append(c.Errors, err.Error())
+			if curl != nil {
+				h.store.IncCounterAsync(charmStatsKey(curl, params.StatsCharmMissing))
+			}
+		}
+	}
+	return response, nil
 }

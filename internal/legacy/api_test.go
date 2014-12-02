@@ -410,3 +410,194 @@ func (s *APISuite) addCharm(c *gc.C, charmName, curl string) (*charm.Reference, 
 	c.Assert(err, gc.IsNil)
 	return url, wordpress
 }
+
+func (s *APISuite) TestCharmEventNotFound(c *gc.C) {
+	storetesting.AssertJSONCall(c, storetesting.JSONCallParams{
+		Handler:      s.srv,
+		URL:          "/charm-event?charms=cs:precise/something",
+		ExpectStatus: http.StatusOK,
+		ExpectBody: map[string]charm.EventResponse{
+			"cs:precise/something": {
+				Errors:   []string{"entry not found"},
+				Kind:     "",
+				Revision: 0,
+			},
+		},
+	})
+}
+
+func (s *APISuite) TestCharmEventWithRevision(c *gc.C) {
+	storetesting.AssertJSONCall(c, storetesting.JSONCallParams{
+		Handler:      s.srv,
+		URL:          "/charm-event?charms=cs:precise/something-23",
+		ExpectStatus: http.StatusOK,
+		ExpectBody: map[string]charm.EventResponse{
+			"cs:precise/something-23": {
+				Errors:   []string{"CharmEvent: got charm URL with revision: cs:precise/something-23"},
+				Kind:     "",
+				Revision: 0,
+			},
+		},
+	})
+}
+
+func (s *APISuite) TestCharmEventWithBadRevision(c *gc.C) {
+	storetesting.AssertJSONCall(c, storetesting.JSONCallParams{
+		Handler:      s.srv,
+		URL:          "/charm-event?charms=cs:pr:ecise/something-23",
+		ExpectStatus: http.StatusOK,
+		ExpectBody: map[string]charm.EventResponse{
+			"cs:precise/something-23": {
+				Errors:   []string{"charm URL has invalid series: \"cs:pr:ecise/something-23\""},
+				Kind:     "",
+				Revision: 0,
+			},
+		},
+	})
+}
+
+func (s *APISuite) TestCharmEventWithDigestExtraInfo(c *gc.C) {
+	wordpressURL, _ := s.addCharm(c, "wordpress", "cs:precise/wordpress-0")
+	extrainfo := map[string][]byte{
+		params.BzrDigestKey: []byte("[]"),
+	}
+	entities := s.store.DB.Entities()
+	err := entities.UpdateId(wordpressURL, bson.D{{
+		"$set", bson.D{{"extrainfo", extrainfo}},
+	}})
+	c.Assert(err, gc.IsNil)
+	wordpressURL.Revision = -1
+	storetesting.AssertJSONCall(c, storetesting.JSONCallParams{
+		Handler:      s.srv,
+		URL:          "/charm-event?charms=" + wordpressURL.String(),
+		ExpectStatus: http.StatusOK,
+		ExpectBody: map[string]charm.EventResponse{
+			"cs:precise/something": {
+				Digest:   "i dunno",
+				Kind:     "published",
+				Revision: 0,
+			},
+		},
+	})
+}
+
+func (s *APISuite) TestCharmEventWithoutDigestExtraInfo(c *gc.C) {
+	wordpressURL, _ := s.addCharm(c, "wordpress", "cs:precise/wordpress-0")
+	c.Assert(err, gc.IsNil)
+	wordpressURL.Revision = -1
+	storetesting.AssertJSONCall(c, storetesting.JSONCallParams{
+		Handler:      s.srv,
+		URL:          "/charm-event?charms=" + wordpressURL.String(),
+		ExpectStatus: http.StatusOK,
+		ExpectBody: map[string]charm.EventResponse{
+			"cs:precise/something": {
+				Digest:   "i dunno",
+				Kind:     "published",
+				Revision: 0,
+			},
+		},
+	})
+}
+
+func (s *APISuite) TestCharmEventHasRFC3339Time(c *gc.C) {
+	wordpressURL, _ := s.addCharm(c, "wordpress", "cs:precise/wordpress-0")
+	wordpressURL.Revision = -1
+	rec := storetesting.DoRequest(c, storetesting.DoRequestParams{
+		Handler: s.srv,
+		Method:  "GET",
+		URL:     "/charm-event?charms=" + wordpressURL.String(),
+	})
+	var response map[string]map[string]string
+	err := json.Unmarshal(rec.Body.Bytes(), response)
+	c.Assert(err, gc.IsNil)
+	response_time := response[wordpressURL.String()]["time"]
+	_, err = time.Parse(time.RFC3339, response_time)
+	c.Assert(err, gc.IsNil)
+}
+
+// JRW: I was converting each test case of this struct test to separate tests
+// which compared using means different than AssertJSONCall because of the time
+// field which fails.
+func (s *APISuite) TestServerCharmEvent(c *gc.C) {
+	wordpressURL, wordpress := s.addCharm(c, "wordpress", "cs:precise/wordpress-1")
+	hashSum := fileSHA256(c, wordpress.Path)
+	digest, err := json.Marshal("who@canonical.com-bzr-digest")
+	c.Assert(err, gc.IsNil)
+
+	tests := []struct {
+		about     string
+		url       string
+		extrainfo map[string][]byte
+		canonical string
+		sha       string
+		digest    string
+		revision  int
+		err       string
+		kind      string
+	}{{
+		about: "partial charm URL with digest extra info",
+		url:   "cs:wordpress",
+		extrainfo: map[string][]byte{
+			params.BzrDigestKey: digest,
+		},
+		canonical: "cs:precise/wordpress-1",
+		sha:       hashSum,
+		digest:    "who@canonical.com-bzr-digest",
+		revision:  1,
+		kind:      "published",
+	}, {
+		about:     "partial charm URL without extra info",
+		url:       "cs:wordpress",
+		canonical: "cs:precise/wordpress-1",
+		sha:       hashSum,
+		revision:  1,
+		kind:      "published",
+	}, {
+		about: "invalid digest extra info",
+		url:   "cs:wordpress",
+		extrainfo: map[string][]byte{
+			params.BzrDigestKey: []byte("[]"),
+		},
+		canonical: "cs:precise/wordpress-1",
+		sha:       hashSum,
+		revision:  0,
+		err:       `cannot unmarshal digest: json: cannot unmarshal array into Go value of type string`,
+	}, {
+		about: "invalid charm URL",
+		url:   "cs:/bad",
+		err:   `entry not found`,
+	}, {
+		about: "invalid charm schema",
+		url:   "gopher:archie-server",
+		err:   `entry not found`,
+	}, {
+		about: "invalid URL",
+		url:   "/charm-event?charms=cs:not-found",
+		err:   "entry not found",
+	}}
+
+	entities := s.store.DB.Entities()
+	for i, test := range tests {
+		c.Logf("test %d: %s", i, test.about)
+		err = entities.UpdateId(wordpressURL, bson.D{{
+			"$set", bson.D{{"extrainfo", test.extrainfo}},
+		}})
+		c.Assert(err, gc.IsNil)
+		expect := charm.EventResponse{
+			Kind:     test.kind,
+			Revision: test.revision,
+			Digest:   test.digest,
+		}
+		if test.err != "" {
+			expect.Errors = []string{test.err}
+		}
+		storetesting.AssertJSONCall(c, storetesting.JSONCallParams{
+			Handler:      s.srv,
+			URL:          "/charm-event?charms=" + test.url,
+			ExpectStatus: http.StatusOK,
+			ExpectBody: map[string]charm.EventResponse{
+				test.url: expect,
+			},
+		})
+	}
+}
