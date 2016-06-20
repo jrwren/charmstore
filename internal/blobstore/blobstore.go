@@ -76,22 +76,29 @@ func NewContentChallengeResponse(chal *ContentChallenge, r io.ReadSeeker) (*Cont
 	}, nil
 }
 
+type Store interface {
+	Put(r io.Reader, name string, size int64, hash string, proof *ContentChallengeResponse) (*ContentChallenge, error)
+	PutUnchallenged(r io.Reader, name string, size int64, hash string) error
+	Open(name string) (ReadSeekCloser, int64, error)
+	Remove(name string) error
+}
+
 // Store stores data blobs in mongodb, de-duplicating by
 // blob hash.
-type Store struct {
+type gridStore struct {
 	mstore blobstore.ManagedStorage
 }
 
 // New returns a new blob store that writes to the given database,
 // prefixing its collections with the given prefix.
-func New(db *mgo.Database, prefix string) *Store {
+func New(db *mgo.Database, prefix string) *gridStore {
 	rs := blobstore.NewGridFS(db.Name, prefix, db.Session)
-	return &Store{
+	return &gridStore{
 		mstore: blobstore.NewManagedStorage(db, rs),
 	}
 }
 
-func (s *Store) challengeResponse(resp *ContentChallengeResponse) error {
+func (s *gridStore) challengeResponse(resp *ContentChallengeResponse) error {
 	id, err := strconv.ParseInt(resp.RequestId, 10, 64)
 	if err != nil {
 		return errgo.Newf("invalid request id %q", id)
@@ -106,7 +113,7 @@ func (s *Store) challengeResponse(resp *ContentChallengeResponse) error {
 // satisfied by a client to prove that they have access to the content.
 // If the proof has already been acquired, it should be passed in as the
 // proof argument.
-func (s *Store) Put(r io.Reader, name string, size int64, hash string, proof *ContentChallengeResponse) (*ContentChallenge, error) {
+func (s *gridStore) Put(r io.Reader, name string, size int64, hash string, proof *ContentChallengeResponse) (*ContentChallenge, error) {
 	if proof != nil {
 		err := s.challengeResponse(proof)
 		if err == nil {
@@ -140,12 +147,12 @@ func (s *Store) Put(r io.Reader, name string, size int64, hash string, proof *Co
 // storage, with the provided name. The content should have the given
 // size and hash. In this case a challenge is never returned and a proof
 // is not required.
-func (s *Store) PutUnchallenged(r io.Reader, name string, size int64, hash string) error {
+func (s *gridStore) PutUnchallenged(r io.Reader, name string, size int64, hash string) error {
 	return s.mstore.PutForEnvironmentAndCheckHash("", name, r, size, hash)
 }
 
 // Open opens the entry with the given name.
-func (s *Store) Open(name string) (ReadSeekCloser, int64, error) {
+func (s *gridStore) Open(name string) (ReadSeekCloser, int64, error) {
 	r, length, err := s.mstore.GetForEnvironment("", name)
 	if err != nil {
 		return nil, 0, errgo.Mask(err)
@@ -154,6 +161,6 @@ func (s *Store) Open(name string) (ReadSeekCloser, int64, error) {
 }
 
 // Remove the given name from the Store.
-func (s *Store) Remove(name string) error {
+func (s *gridStore) Remove(name string) error {
 	return s.mstore.RemoveForEnvironment("", name)
 }

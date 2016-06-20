@@ -218,13 +218,20 @@ func (p *Pool) requestStoreNB(always bool) (*Store, error) {
 	db := p.db.copy()
 	store := &Store{
 		DB:        db,
-		BlobStore: blobstore.New(db.Database, "entitystore"),
+		BlobStore: p.getBlobstore(),
 		ES:        p.es,
 		stats:     &p.stats,
 		pool:      p,
 	}
 	store.Bakery = store.BakeryWithPolicy(p.config.RootKeyPolicy)
 	return store, nil
+}
+
+func (p *Pool) getBlobstore() blobstore.Store {
+	if 0 == len(p.config.BlobStorageProviders) {
+		return blobstore.New(db.Database, "entitystore")
+	}
+	return blobstore.NewFallbackStore(p.config.BlobStorageProviders, db.Database)
 }
 
 // BakeryWithPolicy returns a copy of the Store's Bakery with a macaroon
