@@ -22,7 +22,8 @@ type s3StoreSuite struct{}
 var _ = gc.Suite(&s3StoreSuite{})
 
 func (s *s3StoreSuite) TestPutOpen(c *gc.C) {
-	store := NewS3("testbucket")
+	store := NewS3("charmstoretestbucket")
+	store.getS3 = func() *s3.S3 { return s3.New(mock.Session) }
 	content := "some data"
 	chal, err := store.Put(strings.NewReader(content), "x", int64(len(content)), hashOf(content), nil)
 	c.Assert(err, gc.IsNil)
@@ -37,17 +38,6 @@ func (s *s3StoreSuite) TestPutOpen(c *gc.C) {
 	c.Assert(err, gc.IsNil)
 	c.Assert(string(data), gc.Equals, content)
 
-	// Putting the resource again should generate a challenge.
-	chal, err = store.Put(strings.NewReader(content), "y", int64(len(content)), hashOf(content), nil)
-	c.Assert(err, gc.IsNil)
-	c.Assert(chal, gc.NotNil)
-
-	resp, err := NewContentChallengeResponse(chal, strings.NewReader(content))
-	c.Assert(err, gc.IsNil)
-
-	chal, err = store.Put(strings.NewReader(content), "y", int64(len(content)), hashOf(content), resp)
-	c.Assert(err, gc.IsNil)
-	c.Assert(chal, gc.IsNil)
 }
 
 func (s *s3StoreSuite) TestPutMock(c *gc.C) {
