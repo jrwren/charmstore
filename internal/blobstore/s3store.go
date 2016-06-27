@@ -67,7 +67,10 @@ func (s *s3Store) Open(name string) (ReadSeekCloser, int64, error) {
 	if err != nil {
 		return nil, 0, errgo.Mask(err)
 	}
-	data, err := ioutil.ReadAll(req.Body)
+	if req.Body == nil {
+		return nil, 0, errgo.Newf("body was empty")
+	}
+	data, err := ioutil.ReadAll(req.Body) // JRW: If only body were Seeker
 	if err != nil {
 		return nil, 0, errgo.Mask(err)
 	}
