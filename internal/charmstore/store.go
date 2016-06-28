@@ -227,11 +227,11 @@ func (p *Pool) requestStoreNB(always bool) (*Store, error) {
 	return store, nil
 }
 
-func (p *Pool) getBlobstore() blobstore.Store {
+func (p *Pool) getBlobstore() *blobstore.Store {
 	if 0 == len(p.config.BlobStorageProviders) {
-		return blobstore.New(db.Database, "entitystore")
+		return blobstore.New(p.db.Database, "entitystore")
 	}
-	return blobstore.NewFallbackStore(p.config.BlobStorageProviders, db.Database)
+	return blobstore.NewFallbackStore(p.config.BlobStorageProviders, p.db.Database)
 }
 
 // BakeryWithPolicy returns a copy of the Store's Bakery with a macaroon

@@ -23,7 +23,11 @@ type s3Store struct {
 }
 
 // NewS3 createa a new S3 backed blobstore Store
-func NewS3(bucket string) *s3Store {
+func NewS3(bucket string) *Store {
+	return &Store{newS3(bucket)}
+}
+
+func newS3(bucket string) *s3Store {
 	svc := getS3()
 	_, err := svc.CreateBucket(&s3.CreateBucketInput{
 		Bucket: &bucket,

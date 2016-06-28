@@ -10,20 +10,28 @@ import (
 	"gopkg.in/mgo.v2"
 )
 
+// fallbackStore is a store.
+
+var _ store = (*fallbackStore)(nil)
+
 // fallbackStore holds the Stores to use as the blobstore.
 // The first store is the read/write store. The remaining stores are used as
 // read only stores in the event that migration is ongoing to the
 // primary store.
 type fallbackStore struct {
-	stores []Store
+	stores []*Store
 }
 
 // NewFallbackStore returns a new fallbackStore which is backed by
 // the given ProviderConfig. A gridfs store will use
 // the given mgo.Database.
-func NewFallbackStore(bsps []ProviderConfig, db *mgo.Database) *fallbackStore {
+func NewFallbackStore(bsps []ProviderConfig, db *mgo.Database) *Store {
+	return &Store{newFallbackStore(bsps, db)}
+}
+
+func newFallbackStore(bsps []ProviderConfig, db *mgo.Database) *fallbackStore {
 	s := &fallbackStore{
-		stores: make([]Store, len(bsps)),
+		stores: make([]*Store, len(bsps)),
 	}
 	for i, bsp := range bsps {
 		switch bsp.Name {
@@ -38,11 +46,11 @@ func NewFallbackStore(bsps []ProviderConfig, db *mgo.Database) *fallbackStore {
 	return s
 }
 
-func (s *fallbackStore) Put(r io.ReadSeeker, name string, size int64, hash string, proof *ContentChallengeResponse) (*ContentChallenge, error) {
+func (s *fallbackStore) Put(r io.Reader, name string, size int64, hash string, proof *ContentChallengeResponse) (*ContentChallenge, error) {
 	return s.stores[0].Put(r, name, size, hash, proof)
 }
 
-func (s *fallbackStore) PutUnchallenged(r io.ReadSeeker, name string, size int64, hash string) error {
+func (s *fallbackStore) PutUnchallenged(r io.Reader, name string, size int64, hash string) error {
 	return s.stores[0].PutUnchallenged(r, name, size, hash)
 }
 

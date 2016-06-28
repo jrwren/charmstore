@@ -76,7 +76,11 @@ func NewContentChallengeResponse(chal *ContentChallenge, r io.ReadSeeker) (*Cont
 	}, nil
 }
 
-type Store interface {
+type Store struct {
+	store
+}
+
+type store interface {
 	Put(r io.Reader, name string, size int64, hash string, proof *ContentChallengeResponse) (*ContentChallenge, error)
 	PutUnchallenged(r io.Reader, name string, size int64, hash string) error
 	Open(name string) (ReadSeekCloser, int64, error)
@@ -91,10 +95,12 @@ type gridStore struct {
 
 // New returns a new blob store that writes to the given database,
 // prefixing its collections with the given prefix.
-func New(db *mgo.Database, prefix string) *gridStore {
+func New(db *mgo.Database, prefix string) *Store {
 	rs := blobstore.NewGridFS(db.Name, prefix, db.Session)
-	return &gridStore{
-		mstore: blobstore.NewManagedStorage(db, rs),
+	return &Store{
+		&gridStore{
+			mstore: blobstore.NewManagedStorage(db, rs),
+		},
 	}
 }
 
