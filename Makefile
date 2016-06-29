@@ -119,6 +119,9 @@ else
 	@echo on OS X with homebrew try: brew install bazaar mongodb elasticsearch
 endif
 
+internal/charmstore/migrations_map.go: internal/charmstore/migrations.go
+	{ echo 'package charmstore\n\n var Migrations = map[string]func(StoreDatabase) error { '; for m in $$(grep '(db StoreDatabase) error ' $<  | awk '{print $$2}' | sed 's/...$$//' | grep -v '^migrate$$' ) ; do echo \"$$m\" : $$m, ; done ; echo '}' ;} > $@ ; gofmt -w $@
+
 gopkg:
 	@echo $(PROJECT)
 

@@ -156,6 +156,32 @@ func NewServer(db *mgo.Database, si *SearchIndex, config ServerParams, versions 
 	return srv, nil
 }
 
+// RunMigration runs the specified migration function using a Store configured
+// with the given Database, SearchIndex and ServerParams.
+func RunMigration(db *mgo.Database, config ServerParams, migration func(StoreDatabase) error) error {
+	config.IdentityLocation = strings.TrimSuffix(config.IdentityLocation, "/")
+	config.TermsLocation = strings.TrimSuffix(config.TermsLocation, "/")
+	config.IdentityAPIURL = strings.TrimSuffix(config.IdentityAPIURL, "/")
+	if config.IdentityLocation == "" && config.IdentityAPIURL != "" {
+		config.IdentityLocation = config.IdentityAPIURL
+	}
+	bparams := bakery.NewServiceParams{
+		Location: "charmstore",
+		Locator:  config.PublicKeyLocator,
+	}
+	if config.RootKeyPolicy.ExpiryDuration == 0 {
+		config.RootKeyPolicy.ExpiryDuration = defaultRootKeyExpiryDuration
+	}
+	pool, err := NewPool(db, nil, &bparams, config)
+	if err != nil {
+		return errgo.Notef(err, "cannot make store")
+	}
+	store := pool.Store()
+	defer store.Close()
+	defer pool.Close()
+	return migration(store.DB)
+}
+
 type Server struct {
 	pool     *Pool
 	mux      *router.ServeMux
