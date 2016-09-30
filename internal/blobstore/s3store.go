@@ -23,7 +23,8 @@ type s3Store struct {
 }
 
 // NewS3 createa a new S3 backed blobstore Store
-func NewS3(bucket string) *Store {
+func NewS3(pc *ProviderConfig) *Store {
+	bucket := pc.BucketName
 	return &Store{newS3(bucket)}
 }
 

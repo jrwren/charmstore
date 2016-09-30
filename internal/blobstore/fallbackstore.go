@@ -20,28 +20,35 @@ var _ store = (*fallbackStore)(nil)
 // primary store.
 type fallbackStore struct {
 	stores []*Store
+	// paralle arrays because i'm sloppy
+	storeTypes []string
 }
 
 // NewFallbackStore returns a new fallbackStore which is backed by
 // the given ProviderConfig. A gridfs store will use
 // the given mgo.Database.
-func NewFallbackStore(bsps []ProviderConfig, db *mgo.Database) *Store {
-	return &Store{newFallbackStore(bsps, db)}
+func NewFallbackStore(bsps []ProviderConfig) *Store {
+	return &Store{newFallbackStore(bsps)}
 }
 
-func newFallbackStore(bsps []ProviderConfig, db *mgo.Database) *fallbackStore {
+func newFallbackStore(bsps []ProviderConfig) *fallbackStore {
 	s := &fallbackStore{
-		stores: make([]*Store, len(bsps)),
+		stores:     make([]*Store, len(bsps)),
+		storeTypes: make([]string, len(bsps)),
 	}
 	for i, bsp := range bsps {
-		switch bsp.Name {
+		s.storeTypes[i] = bsp.Type
+		switch bsp.Type {
 		case "gridfs":
-			s.stores[i] = New(db, "entitystore")
+			s.stores[i] = NewGridFSFromProviderConfig(&bsp)
 		case "s3":
-			s.stores[i] = NewS3(bsp.BucketName)
+			s.stores[i] = NewS3(&bsp)
+		case "localfs":
+			s.stores[i] = NewLocalFS(&bsp)
 		default:
-			panic("unknown BloblStorageProvider: " + bsp.Name + " only gridfs or s3 are implemented")
+			panic("unknown BloblStorageProvider: " + bsp.Type + " only gridfs or s3 are implemented")
 		}
+		logger.Debugf("%s blob storage provider configured by FaillbackStore: %v\n", bsp.Type, bsp)
 	}
 	return s
 }
@@ -56,10 +63,11 @@ func (s *fallbackStore) PutUnchallenged(r io.Reader, name string, size int64, ha
 
 func (s *fallbackStore) Open(name string) (ReadSeekCloser, int64, error) {
 	for i := range s.stores {
-		f, s, err := s.stores[i].Open(name)
+		f, st, err := s.stores[i].Open(name)
 		if err == nil {
-			return f, s, err
+			return f, st, err
 		}
+		logger.Debugf("fallbackStore open %s not found in %s err was: %v trying next", name, s.storeTypes[i], err)
 	}
 	return nil, 0, errgo.Newf("file not found %s", name)
 }

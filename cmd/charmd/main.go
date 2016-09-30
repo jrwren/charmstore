@@ -102,6 +102,7 @@ func serve(confPath string) error {
 		HTTPRequestWaitDuration: conf.RequestTimeout.Duration,
 		SearchCacheMaxAge:       conf.SearchCacheMaxAge.Duration,
 		PublicKeyLocator:        keyring,
+		BlobStorageProviders:    conf.BlobStorageProviders,
 	}
 
 	if conf.AuditLogFile != "" {

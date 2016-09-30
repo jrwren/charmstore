@@ -1,4 +1,4 @@
-// Copyright 2014 Canonical Ltd.
+// Copyright 2014-2016 Canonical Ltd.
 // Licensed under the AGPLv3, see LICENCE file for details.
 
 package blobstore // import "gopkg.in/juju/charmstore.v5-unstable/internal/blobstore"
@@ -76,6 +76,8 @@ func NewContentChallengeResponse(chal *ContentChallenge, r io.ReadSeeker) (*Cont
 	}, nil
 }
 
+// Store stores data blobs in the configured store. Currently only gridfs is
+// implemented but other storage strategies will be implemented in the future.
 type Store struct {
 	store
 }
@@ -87,7 +89,7 @@ type store interface {
 	Remove(name string) error
 }
 
-// Store stores data blobs in mongodb, de-duplicating by
+// gridStore stores data blobs in mongodb gridfs, de-duplicating by
 // blob hash.
 type gridStore struct {
 	mstore blobstore.ManagedStorage
@@ -95,6 +97,7 @@ type gridStore struct {
 
 // New returns a new blob store that writes to the given database,
 // prefixing its collections with the given prefix.
+// This is the legacy function. Prefer using NewGridFSFromProviderConfig
 func New(db *mgo.Database, prefix string) *Store {
 	rs := blobstore.NewGridFS(db.Name, prefix, db.Session)
 	return &Store{
@@ -102,6 +105,28 @@ func New(db *mgo.Database, prefix string) *Store {
 			mstore: blobstore.NewManagedStorage(db, rs),
 		},
 	}
+}
+
+// NewGridFSFromProviderConfig returns a new blob stor that writes to mongodb
+// as defined in the given ProviderConfig
+func NewGridFSFromProviderConfig(pc *ProviderConfig) *Store {
+	if pc.MongoAddr == "" {
+		logger.Errorf("gridfs config with empty mongo_addr")
+	}
+	session, err := mgo.Dial(pc.MongoAddr)
+	if err != nil {
+		panic(errgo.Notef(err, "cannot dial mongo at %q", pc.MongoAddr))
+	}
+	dbName := pc.MongoDBName
+	if pc.MongoDBName == "" {
+		dbName = "juju"
+		logger.Debugf("gridfs mongo_dbname was empty, defaulting to juju")
+	}
+	db := session.DB(dbName)
+	if pc.BucketName == "" {
+		logger.Debugf("gridfs bucket_name was empty, mgo will default to fs")
+	}
+	return New(db, pc.BucketName)
 }
 
 func (s *gridStore) challengeResponse(resp *ContentChallengeResponse) error {

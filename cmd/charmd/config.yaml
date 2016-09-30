@@ -23,3 +23,15 @@ identity-location: https://api.jujucharms.com/identity/v1/discharger
 # Uncomment to test with a terms service running locally
 #terms-location: localhost:8085
 access-log: /var/log/charmstore/access.log
+provider-config:
+    - type: s3
+      bucket_name: blobs
+      endpoint: "192.168.15.101:8083"
+      region: us
+      s3_force_path_style: true
+      disable_ssl: true
+    - type: gridfs
+      mongo_addr: localhost:27017
+      mongo_dbname: juju
+      bucket_name: entitystore
+
