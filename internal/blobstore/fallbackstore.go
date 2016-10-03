@@ -7,7 +7,6 @@ import (
 	"io"
 
 	"gopkg.in/errgo.v1"
-	"gopkg.in/mgo.v2"
 )
 
 // fallbackStore is a store.
@@ -25,8 +24,7 @@ type fallbackStore struct {
 }
 
 // NewFallbackStore returns a new fallbackStore which is backed by
-// the given ProviderConfig. A gridfs store will use
-// the given mgo.Database.
+// the given ProviderConfig.
 func NewFallbackStore(bsps []ProviderConfig) *Store {
 	return &Store{newFallbackStore(bsps)}
 }

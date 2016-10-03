@@ -22,21 +22,24 @@ func NewLocalFS(pc *ProviderConfig) *Store {
 }
 
 func (s *localFSStore) Put(r io.Reader, name string, size int64, hash string, proof *ContentChallengeResponse) (*ContentChallenge, error) {
-	w, err := os.Create(path.Join(s.path, name))
-	if err != nil {
-		return nil, err
-	}
-	io.Copy(w, r)
-	return nil, nil
+	panic("why is this even part of the interface?")
 }
 
 func (s *localFSStore) PutUnchallenged(r io.Reader, name string, size int64, hash string) error {
+	w, err := os.Create(path.Join(s.path, name))
+	if err != nil {
+		logger.Errorf("localfs could not put %s", name)
+		return err
+	}
+	io.Copy(w, r)
+	logger.Debugf("localfs put %s", name)
 	return nil
 }
 
 func (s *localFSStore) Open(name string) (ReadSeekCloser, int64, error) {
 	f, err := os.Open(path.Join(s.path, name))
 	if err != nil {
+		logger.Errorf("localfs could not open %s", name)
 		return nil, 0, err
 	}
 	stat, err := f.Stat()
@@ -44,6 +47,7 @@ func (s *localFSStore) Open(name string) (ReadSeekCloser, int64, error) {
 		f.Close()
 		return nil, 0, err
 	}
+	logger.Debugf("localfs openned %s", name)
 	return f, stat.Size(), nil
 }
 

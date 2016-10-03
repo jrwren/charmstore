@@ -22,12 +22,11 @@ type s3StoreSuite struct{}
 var _ = gc.Suite(&s3StoreSuite{})
 
 func (s *s3StoreSuite) TestPutOpen(c *gc.C) {
-	store := newS3("charmstoretestbucket")
+	store := newS3(&ProviderConfig{BucketName: "charmstoretestbucket"})
 	store.getS3 = testGetS3
 	content := "some data"
-	chal, err := store.Put(strings.NewReader(content), "x", int64(len(content)), hashOf(content), nil)
+	err := store.PutUnchallenged(strings.NewReader(content), "x", int64(len(content)), hashOf(content))
 	c.Assert(err, gc.IsNil)
-	c.Assert(chal, gc.IsNil)
 
 	rc, length, err := store.Open("x")
 	c.Assert(err, gc.IsNil)

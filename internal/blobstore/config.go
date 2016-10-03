@@ -6,7 +6,7 @@ package blobstore // import "gopkg.in/juju/charmstore.v5-unstable/internal/blobs
 // ProviderConfig holds configuration for where blobs are stored.
 type ProviderConfig struct {
 	// Type of the provider.  Currently gridfs or s3 are supported.
-	Type string `json:"type"`
+	Type string `yaml:"type"`
 
 	// MongoAddr is the address of the mongodb database holding the gridfs.
 	MongoAddr string `yaml:"mongo_addr,omitempty"`
@@ -18,20 +18,20 @@ type ProviderConfig struct {
 	BucketName string `yaml:"bucket_name,omitempty"`
 
 	// Endpoint for using S3 api with non-S3 store such as swift or Raik CS.
-	Endpoint string `json:"endpoint,omitempty"`
+	Endpoint string `yaml:"endpoint,omitempty"`
 
 	// Region to use with S3.
-	Region string `json:"region,omitempty"`
+	Region string `yaml:"region,omitempty"`
 
 	// S3ForcePathStyle to use with S3.
-	S3ForcePathStyle bool `json:"s3_force_path_style,omitempty"`
+	S3ForcePathStyle bool `yaml:"s3_force_path_style,omitempty"`
 
 	// DisableSSL to use with S3.
-	DisableSSL bool `json:"disable_ssl,omitempty"`
+	DisableSSL bool `yaml:"disable_ssl,omitempty"`
 
-	// Key to use with S3.
-	Key string `json:"key,omitempty"`
+	// Key to use with S3, aka access key.
+	Key string `yaml:"key,omitempty"`
 
 	// Secret to use with S3.
-	Secret string `json:"secret,omitempty"`
+	Secret string `yaml:"secret,omitempty"`
 }

@@ -11,6 +11,7 @@ import (
 	"os"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/defaults"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -24,42 +25,47 @@ type s3Store struct {
 
 // NewS3 createa a new S3 backed blobstore Store
 func NewS3(pc *ProviderConfig) *Store {
-	bucket := pc.BucketName
-	return &Store{newS3(bucket)}
+	return &Store{newS3(pc)}
 }
 
-func newS3(bucket string) *s3Store {
-	svc := getS3()
+func newS3(pc *ProviderConfig) *s3Store {
+	getter := getS3(pc)
+	svc := getter()
 	_, err := svc.CreateBucket(&s3.CreateBucketInput{
-		Bucket: &bucket,
+		Bucket: &pc.BucketName,
 	})
 	if err != nil {
 		log.Println("Failed to create bucket", err)
 	}
 	return &s3Store{
-		bucket: bucket,
-		getS3:  getS3,
+		bucket: pc.BucketName,
+		getS3:  getter,
 	}
 }
 
 func (s *s3Store) Put(r io.Reader, name string, size int64, hash string, proof *ContentChallengeResponse) (*ContentChallenge, error) {
-	svc := s.getS3()
-	reader, ok := r.(io.ReadSeeker)
-	if !ok {
-		panic("cannot cast to ReadSeeker")
-	}
-	_, err := svc.PutObject(&s3.PutObjectInput{
-		Bucket: aws.String(s.bucket),
-		Key:    aws.String(name),
-		Body:   reader,
-	})
-	if err != nil {
-		return nil, errgo.Mask(err)
-	}
-	return nil, nil
+	panic("why is this even part of the interface?")
 }
 
 func (s *s3Store) PutUnchallenged(r io.Reader, name string, size int64, hash string) error {
+	svc := s.getS3()
+	f, err := ioutil.TempFile("", "s3store")
+	if err != nil {
+		return errgo.Mask(err)
+	}
+	defer os.Remove(f.Name())
+	io.Copy(f, r)
+	f.Seek(0, 0)
+	_, err = svc.PutObject(&s3.PutObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(name),
+		Body:   f,
+	})
+	if err != nil {
+		logger.Errorf("put failed :%s", err)
+		return errgo.Mask(err)
+	}
+	logger.Debugf("successful put %s in bucket %s", name, s.bucket)
 	return nil
 }
 
@@ -87,13 +93,26 @@ func (s *s3Store) Remove(name string) error {
 	return nil
 }
 
-func getS3() *s3.S3 {
-	c := defaults.Get().Config.WithCredentialsChainVerboseErrors(true).WithRegion("us-east-1")
-	if "" == os.Getenv("AWS_REGION") {
-		c = c.WithRegion("us-east-1")
+func getS3(pc *ProviderConfig) func() *s3.S3 {
+	c := defaults.Get().Config.WithCredentialsChainVerboseErrors(true).WithRegion("us-east-1").
+		WithCredentials(credentials.NewStaticCredentials(pc.Key, pc.Secret, ""))
+	if pc.DisableSSL {
+		c = c.WithDisableSSL(true)
 	}
-	sess := session.New(c)
-	return s3.New(sess)
+	if "" != pc.Endpoint {
+		c = c.WithEndpoint(pc.Endpoint)
+	}
+	if "" != pc.Region {
+		c = c.WithRegion(pc.Region)
+	}
+	if pc.S3ForcePathStyle {
+		c = c.WithS3ForcePathStyle(true)
+	}
+
+	return func() *s3.S3 {
+		sess := session.New(c)
+		return s3.New(sess)
+	}
 }
 
 type nopCloserReadSeeker struct {
