@@ -218,7 +218,7 @@ func (p *Pool) requestStoreNB(always bool) (*Store, error) {
 	db := p.db.copy()
 	store := &Store{
 		DB:        db,
-		BlobStore: p.getBlobstore(),
+		BlobStore: p.newBlobstore(db.Database),
 		ES:        p.es,
 		stats:     &p.stats,
 		pool:      p,
@@ -227,12 +227,13 @@ func (p *Pool) requestStoreNB(always bool) (*Store, error) {
 	return store, nil
 }
 
-func (p *Pool) getBlobstore() *blobstore.Store {
+// newBlobstore creates a new blobstore based on config and the given StoreDatabase.
+func (p *Pool) newBlobstore(db *mgo.Database) *blobstore.Store {
 	// If no BlobStoreProviders are in the config, use the legacy config of
 	// same mongo as entity database and entitystore as the gridfs prefix.
 	if 0 == len(p.config.BlobStorageProviders) {
-		logger.Debugf("using default gridfs blobstore with prefix entitystore")
-		return blobstore.New(p.db.Database, "entitystore")
+		logger.Debugf("using default gridfs blobstore with prefix entitystore - no provider-config")
+		return blobstore.New(db, "entitystore")
 	}
 	return blobstore.NewFallbackStore(p.config.BlobStorageProviders)
 }
@@ -284,7 +285,7 @@ type Store struct {
 func (s *Store) Copy() *Store {
 	s1 := *s
 	s1.DB = s.DB.clone()
-	s1.BlobStore = s.pool.getBlobstore()
+	s1.BlobStore = s.pool.newBlobstore(s1.DB.Database)
 	s1.Bakery = s1.BakeryWithPolicy(s.pool.config.RootKeyPolicy)
 
 	s.pool.mu.Lock()
