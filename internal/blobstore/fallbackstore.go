@@ -43,8 +43,10 @@ func newFallbackStore(bsps []ProviderConfig) *fallbackStore {
 			s.stores[i] = NewS3(&bsp)
 		case "localfs":
 			s.stores[i] = NewLocalFS(&bsp)
+		case "swift":
+			s.stores[i] = NewSwift(&bsp)
 		default:
-			panic("unknown BloblStorageProvider: " + bsp.Type + " only gridfs or s3 are implemented")
+			panic("unknown BloblStorageProvider: " + bsp.Type)
 		}
 		logger.Debugf("%s blob storage provider configured by FaillbackStore: %v\n", bsp.Type, bsp)
 	}

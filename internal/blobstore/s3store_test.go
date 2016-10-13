@@ -12,7 +12,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws/client"
 	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/awstesting/mock"
+	"github.com/aws/aws-sdk-go/awstesting/unit"
 	"github.com/aws/aws-sdk-go/service/s3"
 	gc "gopkg.in/check.v1"
 )
@@ -48,7 +48,7 @@ func hashOf(s string) string {
 var mockSession = newMockSession()
 
 func newMockSession() client.ConfigProvider {
-	x := mock.Session
+	x := unit.Session
 	return x
 }
 
