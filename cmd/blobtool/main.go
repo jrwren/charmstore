@@ -124,6 +124,7 @@ func action(store *charmstore.Store) error {
 	counter := 0
 	var entity mongodoc.Entity
 	for iter.Next(&entity) {
+		logger.Debugf("processing %s", entity.URL)
 		blob, err := store.OpenBlob(charmstore.EntityResolvedURL(&entity))
 		if err != nil {
 			return errgo.Notef(err, "cannot open archive data for %s", entity.URL)

@@ -5,7 +5,6 @@ package blobstore // import "gopkg.in/juju/charmstore.v5-unstable/internal/blobs
 
 import (
 	"io"
-	"log"
 
 	"github.com/ncw/swift"
 	"gopkg.in/errgo.v1"
@@ -26,7 +25,7 @@ func newSwift(pc *ProviderConfig) *swiftStore {
 	svc := getter()
 	err := svc.ContainerCreate(pc.BucketName, nil)
 	if err != nil {
-		log.Println("Failed to create bucket", err)
+		logger.Debugf("Failed to create bucket %s", err)
 	}
 	return &swiftStore{
 		bucket:       pc.BucketName,
@@ -42,7 +41,7 @@ func (s *swiftStore) PutUnchallenged(r io.Reader, name string, size int64, hash 
 	svc := s.getSwiftConn()
 	_, err := svc.ObjectPut(s.bucket, name, r, true, "", "", nil)
 	if err != nil {
-		logger.Errorf("put failed :%s", err)
+		logger.Errorf("put failed: %s", err)
 		return errgo.Mask(err)
 	}
 	logger.Debugf("successful put %s in bucket %s", name, s.bucket)
@@ -53,11 +52,13 @@ func (s *swiftStore) Open(name string) (ReadSeekCloser, int64, error) {
 	svc := s.getSwiftConn()
 	oof, _, err := svc.ObjectOpen(s.bucket, name, true, nil)
 	if err != nil {
+		logger.Debugf("ObjectOpen failed: %s", err)
 		return nil, 0, errgo.Mask(err)
 	}
 	len, err := oof.Length()
 	if err != nil {
 		oof.Close()
+		logger.Debugf("Length failed: %s", err)
 		return nil, 0, errgo.Mask(err)
 	}
 	return oof, len, nil
@@ -68,11 +69,12 @@ func (s *swiftStore) Remove(name string) error {
 }
 
 func getswift(pc *ProviderConfig) func() *swift.Connection {
+	pc1 := *pc
 	return func() *swift.Connection {
 		return &swift.Connection{
-			UserName: pc.Key,
-			ApiKey:   pc.Secret,
-			AuthUrl:  pc.Endpoint,
+			UserName: pc1.Key,
+			ApiKey:   pc1.Secret,
+			AuthUrl:  pc1.Endpoint,
 		}
 	}
 }
