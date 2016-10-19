@@ -33,8 +33,9 @@ func newSwift(pc *ProviderConfig) *swiftStore {
 	}
 }
 
-func (s *swiftStore) Put(r io.Reader, name string, size int64, hash string, proof *ContentChallengeResponse) (*ContentChallenge, error) {
-	panic("why is this even part of the interface?")
+func (s *swiftStore) Put(r io.Reader, name string, size int64, hash string, proof *ContentChallengeResponse) (_ *ContentChallenge, err error) {
+	err = s.PutUnchallenged(r, name, size, hash)
+	return
 }
 
 func (s *swiftStore) PutUnchallenged(r io.Reader, name string, size int64, hash string) error {

@@ -121,22 +121,26 @@ func action(store *charmstore.Store) error {
 	iter := entities.Find(filterMap).Iter()
 	defer iter.Close()
 
-	counter := 0
+	successCounter := 0
+	failCounter := 0
 	var entity mongodoc.Entity
 	for iter.Next(&entity) {
 		logger.Debugf("processing %s", entity.URL)
 		blob, err := store.OpenBlob(charmstore.EntityResolvedURL(&entity))
 		if err != nil {
-			return errgo.Notef(err, "cannot open archive data for %s", entity.URL)
+			logger.Warningf("cannot open archive data for %s: %s", entity.URL, err)
+			failCounter++
+			continue
 		}
 		defer blob.Close()
+		logger.Debugf("copying %s %s", entity.URL, entity.BlobName)
 		store.BlobStore.Put(blob, entity.BlobName, blob.Size, blob.Hash, nil)
-		counter++
-		if counter%100 == 0 {
-			logger.Infof("%d entities updated", counter)
+		successCounter++
+		if successCounter%100 == 0 {
+			logger.Infof("%d entities written", successCounter)
 		}
 	}
-	logger.Infof("%d entities updated", counter)
+	logger.Infof("%d entities written. %d failed to read.", successCounter, failCounter)
 
 	return nil
 }
