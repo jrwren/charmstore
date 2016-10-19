@@ -43,7 +43,7 @@ func newS3(pc *ProviderConfig) *s3Store {
 	}
 }
 
-func (s *s3Store) Put(r io.Reader, name string, size int64, hash string, proof *ContentChallengeResponse) (*ContentChallenge, error) {
+func (s *s3Store) Put(r io.Reader, name string, size int64, hash string, proof *ContentChallengeResponse) (_ *ContentChallenge, err error) {
 	err = s.PutUnchallenged(r, name, size, hash)
 	return
 }

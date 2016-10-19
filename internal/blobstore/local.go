@@ -21,7 +21,7 @@ func NewLocalFS(pc *ProviderConfig) *Store {
 	return &Store{&localFSStore{path: pc.BucketName}}
 }
 
-func (s *localFSStore) Put(r io.Reader, name string, size int64, hash string, proof *ContentChallengeResponse) (*ContentChallenge, error) {
+func (s *localFSStore) Put(r io.Reader, name string, size int64, hash string, proof *ContentChallengeResponse) (_ *ContentChallenge, err error) {
 	err = s.PutUnchallenged(r, name, size, hash)
 	return
 }
