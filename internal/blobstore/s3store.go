@@ -44,7 +44,8 @@ func newS3(pc *ProviderConfig) *s3Store {
 }
 
 func (s *s3Store) Put(r io.Reader, name string, size int64, hash string, proof *ContentChallengeResponse) (*ContentChallenge, error) {
-	panic("why is this even part of the interface?")
+	err = s.PutUnchallenged(r, name, size, hash)
+	return
 }
 
 func (s *s3Store) PutUnchallenged(r io.Reader, name string, size int64, hash string) error {

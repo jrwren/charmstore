@@ -22,8 +22,8 @@ import (
 
 var (
 	logger        = loggo.GetLogger("blobtool")
-	loggingConfig = flag.String("logging-config", "", "specify log levels for modules e.g. <root>=TRACE")
-	filter        = flag.String("filter", "", "filter")
+	loggingConfig = flag.String("logging-config", "", "specify log levels for modules e.g. TRACE or '<root>=DEBUG;mgo=WARN'")
+	filter        = flag.String("filter", "", `json filter string to use as mongodb query. e.g. '{"user":"evarlast"}' or '{"size":{"$lt": 10000000}}'`)
 )
 
 func main() {
