@@ -107,9 +107,9 @@ func New(db *mgo.Database, prefix string) *Store {
 	}
 }
 
-// NewGridFSFromProviderConfig returns a new blob stor that writes to mongodb
+// NewBlobstoreFromProviderConfig returns a new blob stor that writes to mongodb
 // as defined in the given ProviderConfig
-func NewGridFSFromProviderConfig(pc *ProviderConfig) *Store {
+func NewBlobstoreFromProviderConfig(pc *ProviderConfig) *Store {
 	if pc.MongoAddr == "" {
 		logger.Errorf("gridfs config with empty mongo_addr")
 	}

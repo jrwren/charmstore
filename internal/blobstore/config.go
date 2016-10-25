@@ -5,7 +5,7 @@ package blobstore // import "gopkg.in/juju/charmstore.v5-unstable/internal/blobs
 
 // ProviderConfig holds configuration for where blobs are stored.
 type ProviderConfig struct {
-	// Type of the provider.  Currently gridfs or s3 are supported.
+	// Type of the provider.  Currently blobstore, s3, swift, localfs are supported.
 	Type string `yaml:"type"`
 
 	// MongoAddr is the address of the mongodb database holding the gridfs.
@@ -34,4 +34,7 @@ type ProviderConfig struct {
 
 	// Secret to use with S3.
 	Secret string `yaml:"secret,omitempty"`
+
+	// Mode of the provider. Read-only, Write-only, or Read-Write
+	Mode string `yaml:"mode,omitempty"`
 }

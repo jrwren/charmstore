@@ -235,7 +235,7 @@ func (p *Pool) newBlobstore(db *mgo.Database) *blobstore.Store {
 		logger.Debugf("using default gridfs blobstore with prefix entitystore - no provider-config")
 		return blobstore.New(db, "entitystore")
 	}
-	return blobstore.NewFallbackStore(p.config.BlobStorageProviders)
+	return blobstore.NewMultiStore(p.config.BlobStorageProviders)
 }
 
 // BakeryWithPolicy returns a copy of the Store's Bakery with a macaroon
