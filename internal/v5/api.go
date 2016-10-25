@@ -1590,7 +1590,7 @@ func reqBodyReadHandler(f router.IdHandler) router.IdHandler {
 		if err != nil {
 			logger.Errorf("error discarding request body %s", err)
 		}
-		logger.Debugf("discarded %d bytes from request Body", count)
+		logger.Debugf("discarded %d bytes from request body", count)
 		return r
 	}
 }
