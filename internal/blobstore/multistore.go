@@ -10,7 +10,6 @@ import (
 )
 
 // multiStore is a store.
-
 var _ store = (*multiStore)(nil)
 
 // multiStore holds the Stores to use as the blobstore.
@@ -52,7 +51,7 @@ func newMultiStore(bsps []ProviderConfig) *multiStore {
 		case "swift":
 			s.stores[i] = NewSwift(&bsp)
 		default:
-			panic("unknown BloblStorageProvider: " + bsp.Type)
+			panic("unknown provider-config type: " + bsp.Type)
 		}
 		logger.Debugf("%s blob storage provider configured by FaillbackStore: %v\n", bsp.Type, bsp)
 	}
@@ -103,4 +102,8 @@ func (s *multiStore) Remove(name string) (err error) {
 		}
 	}
 	return
+}
+
+func (s *multiStore) StatAll() ([]BlobStoreStat, error) {
+	return nil, nil
 }

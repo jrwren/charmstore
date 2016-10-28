@@ -94,6 +94,10 @@ func (s *s3Store) Remove(name string) error {
 	return nil
 }
 
+func (s *s3Store) StatAll() ([]BlobStoreStat, error) {
+	return nil, nil
+}
+
 func getS3(pc *ProviderConfig) func() *s3.S3 {
 	c := defaults.Get().Config.WithCredentialsChainVerboseErrors(true).WithRegion("us-east-1").
 		WithCredentials(credentials.NewStaticCredentials(pc.Key, pc.Secret, ""))

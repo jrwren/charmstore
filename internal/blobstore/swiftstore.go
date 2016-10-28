@@ -69,6 +69,10 @@ func (s *swiftStore) Remove(name string) error {
 	return s.getSwiftConn().ObjectDelete(s.bucket, name)
 }
 
+func (s *swiftStore) StatAll() ([]BlobStoreStat, error) {
+	return nil, nil
+}
+
 func getswift(pc *ProviderConfig) func() *swift.Connection {
 	pc1 := *pc
 	return func() *swift.Connection {

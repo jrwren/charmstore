@@ -14,6 +14,7 @@ import (
 	"github.com/juju/errors"
 	"gopkg.in/errgo.v1"
 	"gopkg.in/mgo.v2"
+	"gopkg.in/mgo.v2/bson"
 )
 
 type ReadSeekCloser interface {
@@ -87,12 +88,15 @@ type store interface {
 	PutUnchallenged(r io.Reader, name string, size int64, hash string) error
 	Open(name string) (ReadSeekCloser, int64, error)
 	Remove(name string) error
+	StatAll() ([]BlobStoreStat, error)
 }
 
 // gridStore stores data blobs in mongodb gridfs, de-duplicating by
 // blob hash.
 type gridStore struct {
 	mstore blobstore.ManagedStorage
+	db     *mgo.Database
+	prefix string
 }
 
 // New returns a new blob store that writes to the given database,
@@ -103,6 +107,8 @@ func New(db *mgo.Database, prefix string) *Store {
 	return &Store{
 		&gridStore{
 			mstore: blobstore.NewManagedStorage(db, rs),
+			db:     db,
+			prefix: prefix,
 		},
 	}
 }
@@ -194,4 +200,53 @@ func (s *gridStore) Open(name string) (ReadSeekCloser, int64, error) {
 // Remove the given name from the Store.
 func (s *gridStore) Remove(name string) error {
 	return s.mstore.RemoveForEnvironment("", name)
+}
+
+// BlobStoreStat holds name and size for blobs for any store.
+type BlobStoreStat struct {
+	Name string `bson:"filename"`
+	Size int64  `bson:"length"`
+}
+
+/* github.com/juju/blobstore uses relational data in mongodb. YAY?
+
+I got tired of trying to figure it out every time, so:
+
++-----------------+       +-----------------+    +-----------------------+
+|   entities      |       | storedResources |    | managedStoredResoures |
++-----------------+       +-----------------+    +-----------------------+
+|   blobhash      |<----->| sha384hash(_id) |<-->|  resourceid           |
+|   ...           |       | path            |-+  |  path(_id)  **        |<-+
+|   size          |       | length          | |  |                       |  |
+|   blobname      |<--+   |                 | |  |                       |  |
++-----------------+   |   +-----------------+ |  +-----------------------+  |
+i                     |                       |                             |
+                      +-----------------------|-----------------------------+
+                                              |  +-------------+
+                                              |  | entitystore | (GridFS)
+                                              |  +-------------+
+                                              +->| filename    |
+                                                 | length      |
+                                                 +-------------+
+
+	** The _id/path in managedStoredResoures is the blobname  with "global/" prefixed.
+*/
+
+// StatAll returns names and sizes for every blob in the Store.
+func (s *gridStore) StatAll() ([]BlobStoreStat, error) {
+	var bsf []BlobStoreStat
+	gfs := s.db.GridFS(s.prefix)
+	iter := gfs.Find(bson.M{}).Select(bson.M{"filename": 1, "length": 1}).Sort("-size").Iter()
+	err := iter.All(&bsf)
+	if err != nil {
+		logger.Errorf("gridStore StatAll %s", err)
+		return nil, errgo.Mask(err)
+	}
+	iter2 := s.db.C("storedResources").Select(bson.M{"path": 1, "sha384hash": 1}).Iter()
+
+	for iter.Next(&item) {
+
+	}
+	logger.Debugf("StatAll %v", bsf)
+	return bsf, nil
 }

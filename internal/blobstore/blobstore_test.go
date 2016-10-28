@@ -158,6 +158,25 @@ func (s *BlobStoreSuite) TestLarge(c *gc.C) {
 	c.Assert(hashOfReader(c, rc), gc.Equals, hash)
 }
 
+func (s *BlobStoreSuite) TestStatAll(c *gc.C) {
+
+	store := blobstore.New(s.Session.DB("db"), "blobstore")
+	content := "you sit colapsed"
+	name := "metropolis"
+	err := store.PutUnchallenged(strings.NewReader(content), name, int64(len(content)), hashOf(content))
+	c.Assert(err, gc.IsNil)
+	content2 := "everylittlebit counts"
+	name2 := "sistermachinegun"
+	err = store.PutUnchallenged(strings.NewReader(content2), name2, int64(len(content2)), hashOf(content2))
+	c.Assert(err, gc.IsNil)
+
+	stats, err := store.StatAll()
+	c.Assert(err, gc.IsNil)
+
+	c.Assert(stats[0].Name, gc.Equals, name2)
+	c.Assert(stats[1].Name, gc.Equals, name)
+}
+
 func hashOfReader(c *gc.C, r io.Reader) string {
 	h := blobstore.NewHash()
 	_, err := io.Copy(h, r)

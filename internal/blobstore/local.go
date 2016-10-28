@@ -55,3 +55,7 @@ func (s *localFSStore) Open(name string) (ReadSeekCloser, int64, error) {
 func (s *localFSStore) Remove(name string) error {
 	return os.Remove(name)
 }
+
+func (s *localFSStore) StatAll() ([]BlobStoreStat, error) {
+	return nil, nil
+}
