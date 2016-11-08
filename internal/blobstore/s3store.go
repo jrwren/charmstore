@@ -8,13 +8,9 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"os"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/defaults"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
+	"gopkg.in/amz.v3/aws"
+	"gopkg.in/amz.v3/s3"
 	"gopkg.in/errgo.v1"
 )
 
@@ -30,16 +26,22 @@ func NewS3(pc *ProviderConfig) *Store {
 
 func newS3(pc *ProviderConfig) *s3Store {
 	getter := getS3(pc)
-	svc := getter()
-	_, err := svc.CreateBucket(&s3.CreateBucketInput{
-		Bucket: &pc.BucketName,
-	})
-	if err != nil {
-		log.Println("Failed to create bucket", err)
-	}
-	return &s3Store{
+	s := &s3Store{
 		bucket: pc.BucketName,
 		getS3:  getter,
+	}
+	s.createBucket()
+	return s
+}
+
+func (s *s3Store) createBucket() {
+	bucket, err := s.getS3().Bucket(s.bucket)
+	if err != nil { //this only happens on invalid bucket name that is when a name has any of /:@
+		panic(err)
+	}
+	err = bucket.PutBucket(s3.Private)
+	if err != nil {
+		log.Println("Failed to create bucket", err)
 	}
 }
 
@@ -50,18 +52,8 @@ func (s *s3Store) Put(r io.Reader, name string, size int64, hash string, proof *
 
 func (s *s3Store) PutUnchallenged(r io.Reader, name string, size int64, hash string) error {
 	svc := s.getS3()
-	f, err := ioutil.TempFile("", "s3store")
-	if err != nil {
-		return errgo.Mask(err)
-	}
-	defer os.Remove(f.Name())
-	io.Copy(f, r)
-	f.Seek(0, 0)
-	_, err = svc.PutObject(&s3.PutObjectInput{
-		Bucket: aws.String(s.bucket),
-		Key:    aws.String(name),
-		Body:   f,
-	})
+	bucket, _ := svc.Bucket(s.bucket) // Ignoring the error because we know this bucket name is valid.
+	err := bucket.PutReader(name, r, size, "application/octet-stream", s3.Private)
 	if err != nil {
 		logger.Errorf("put failed :%s", err)
 		return errgo.Mask(err)
@@ -72,26 +64,22 @@ func (s *s3Store) PutUnchallenged(r io.Reader, name string, size int64, hash str
 
 func (s *s3Store) Open(name string) (ReadSeekCloser, int64, error) {
 	svc := s.getS3()
-	req, err := svc.GetObject(&s3.GetObjectInput{
-		Bucket: aws.String(s.bucket),
-		Key:    aws.String(name),
-	})
+	bucket, _ := svc.Bucket(s.bucket)
+	rc, err := bucket.GetReader(name)
 	if err != nil {
 		return nil, 0, errgo.Mask(err)
 	}
-	if req.Body == nil {
-		return nil, 0, errgo.Newf("body was empty")
-	}
-	data, err := ioutil.ReadAll(req.Body) // JRW: If only body were Seeker
+	data, err := ioutil.ReadAll(rc) // JRW: If only rc were Seeker
 	if err != nil {
 		return nil, 0, errgo.Mask(err)
 	}
 	r := nopCloser(bytes.NewReader(data)) // JRW: *cringe*
-	return r, *req.ContentLength, nil
+	return r, int64(len(data)), nil
 }
 
 func (s *s3Store) Remove(name string) error {
-	return nil
+	bucket, _ := s.getS3().Bucket(s.bucket)
+	return bucket.Del(name)
 }
 
 func (s *s3Store) StatAll() ([]BlobStoreStat, error) {
@@ -99,24 +87,18 @@ func (s *s3Store) StatAll() ([]BlobStoreStat, error) {
 }
 
 func getS3(pc *ProviderConfig) func() *s3.S3 {
-	c := defaults.Get().Config.WithCredentialsChainVerboseErrors(true).WithRegion("us-east-1").
-		WithCredentials(credentials.NewStaticCredentials(pc.Key, pc.Secret, ""))
-	if pc.DisableSSL {
-		c = c.WithDisableSSL(true)
-	}
-	if "" != pc.Endpoint {
-		c = c.WithEndpoint(pc.Endpoint)
-	}
+	regionName := "us-east-1"
 	if "" != pc.Region {
-		c = c.WithRegion(pc.Region)
+		regionName = pc.Region
 	}
-	if pc.S3ForcePathStyle {
-		c = c.WithS3ForcePathStyle(true)
-	}
+	region := aws.Regions[regionName]
 
+	auth := aws.Auth{
+		AccessKey: pc.Key,
+		SecretKey: pc.Secret,
+	}
 	return func() *s3.S3 {
-		sess := session.New(c)
-		return s3.New(sess)
+		return s3.New(auth, region)
 	}
 }
 
