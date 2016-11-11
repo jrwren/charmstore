@@ -83,6 +83,8 @@ type Store struct {
 	store
 }
 
+// Store stores data blobs in mongodb, de-duplicating by
+// blob hash.
 type store interface {
 	Put(r io.Reader, name string, size int64, hash string, proof *ContentChallengeResponse) (*ContentChallenge, error)
 	PutUnchallenged(r io.Reader, name string, size int64, hash string) error
@@ -242,11 +244,11 @@ func (s *gridStore) StatAll() ([]BlobStoreStat, error) {
 		logger.Errorf("gridStore StatAll %s", err)
 		return nil, errgo.Mask(err)
 	}
-	iter2 := s.db.C("storedResources").Select(bson.M{"path": 1, "sha384hash": 1}).Iter()
+	//iter2 := s.db.C("storedResources").Select(bson.M{"path": 1, "sha384hash": 1}).Iter()
 
-	for iter.Next(&item) {
+	//for iter.Next(&item) {
 
-	}
+	//}
 	logger.Debugf("StatAll %v", bsf)
 	return bsf, nil
 }
