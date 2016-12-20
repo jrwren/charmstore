@@ -93,6 +93,13 @@ func getS3(pc *ProviderConfig) func() *s3.S3 {
 	}
 	region := aws.Regions[regionName]
 
+	if "" != pc.Endpoint {
+		region = aws.Region{
+			Name:       regionName,
+			S3Endpoint: pc.Endpoint,
+		}
+	}
+
 	auth := aws.Auth{
 		AccessKey: pc.Key,
 		SecretKey: pc.Secret,
