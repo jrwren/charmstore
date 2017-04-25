@@ -119,6 +119,12 @@ type ServerParams struct {
 	// RunBlobStoreGC holds whether the server will run
 	// the blobstore garbage collector worker.
 	RunBlobStoreGC bool
+
+	// Azure Storage Account
+	AzureStorageAccount string
+
+	// Azure Storage Key
+	AzureStorageKey string
 }
 
 // NewServer returns a new handler that handles charm store requests and stores

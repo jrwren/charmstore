@@ -14,6 +14,8 @@ import (
 	"testing/iotest"
 	"time"
 
+	"github.com/Azure/azure-sdk-for-go/storage"
+	"github.com/jrwren/ase"
 	jujutesting "github.com/juju/testing"
 	jc "github.com/juju/testing/checkers"
 	gc "gopkg.in/check.v1"
@@ -30,13 +32,24 @@ func TestPackage(t *testing.T) {
 type BlobStoreSuite struct {
 	jujutesting.IsolatedMgoSuite
 	store *blobstore.Store
+	ase   ase.Reseter
 }
 
 var _ = gc.Suite(&BlobStoreSuite{})
 
+func (s *BlobStoreSuite) SetUpSuite(c *gc.C) {
+	s.IsolatedMgoSuite.SetUpSuite(c)
+	ase, err := ase.Start()
+	c.Assert(err, gc.Equals, nil)
+	s.ase = ase
+}
 func (s *BlobStoreSuite) SetUpTest(c *gc.C) {
 	s.IsolatedMgoSuite.SetUpTest(c)
-	s.store = blobstore.New(s.Session.DB("db"), "blobstore")
+	// "The storage emulator currently runs only on Windows."
+	// https://docs.microsoft.com/en-us/azure/storage/storage-use-emulator
+	sc, _ := storage.NewBasicClient(storage.StorageEmulatorAccountName, "")
+	s.ase.Reset()
+	s.store = blobstore.New(s.Session.DB("db"), "blobstore", "testc", sc.GetBlobService())
 }
 
 func (s *BlobStoreSuite) TestPutTwice(c *gc.C) {
@@ -267,7 +280,8 @@ func (s *BlobStoreSuite) TestPutPartConcurrent(c *gc.C) {
 			// mongo sockets and more concurrency.
 			db := s.Session.Copy().DB("db")
 			defer db.Session.Close()
-			store := blobstore.New(db, "blobstore")
+			sc, _ := storage.NewBasicClient(storage.StorageEmulatorAccountName, "")
+			store := blobstore.New(db, "blobstore", "testc", sc.GetBlobService())
 			err := store.PutPart(id, i, newDataSource(int64(i+1), size), size, hash[i])
 			c.Check(err, gc.Equals, nil)
 		}()

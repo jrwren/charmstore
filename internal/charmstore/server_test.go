@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Azure/azure-sdk-for-go/storage"
 	"github.com/juju/testing/httptesting"
 	gc "gopkg.in/check.v1"
 	errgo "gopkg.in/errgo.v1"
@@ -22,9 +23,10 @@ import (
 )
 
 var serverParams = ServerParams{
-	AuthUsername:     "test-user",
-	AuthPassword:     "test-password",
-	IdentityLocation: "http://0.1.2.3",
+	AuthUsername:        "test-user",
+	AuthPassword:        "test-password",
+	IdentityLocation:    "http://0.1.2.3",
+	AzureStorageAccount: storage.StorageEmulatorAccountName,
 }
 
 type ServerSuite struct {

@@ -19,29 +19,31 @@ import (
 
 type Config struct {
 	// TODO(rog) rename this to MongoAddr - it's not a URL.
-	MongoURL          string            `yaml:"mongo-url,omitempty"`
-	AuditLogFile      string            `yaml:"audit-log-file,omitempty"`
-	AuditLogMaxSize   int               `yaml:"audit-log-max-size,omitempty"`
-	AuditLogMaxAge    int               `yaml:"audit-log-max-age,omitempty"`
-	APIAddr           string            `yaml:"api-addr,omitempty"`
-	AuthUsername      string            `yaml:"auth-username,omitempty"`
-	AuthPassword      string            `yaml:"auth-password,omitempty"`
-	ESAddr            string            `yaml:"elasticsearch-addr,omitempty"` // elasticsearch is optional
-	IdentityPublicKey *bakery.PublicKey `yaml:"identity-public-key,omitempty"`
-	IdentityLocation  string            `yaml:"identity-location"`
-	TermsPublicKey    *bakery.PublicKey `yaml:"terms-public-key,omitempty"`
-	TermsLocation     string            `yaml:"terms-location,omitempty"`
-	AgentUsername     string            `yaml:"agent-username,omitempty"`
-	AgentKey          *bakery.KeyPair   `yaml:"agent-key,omitempty"`
-	MaxMgoSessions    int               `yaml:"max-mgo-sessions,omitempty"`
-	RequestTimeout    DurationString    `yaml:"request-timeout,omitempty"`
-	StatsCacheMaxAge  DurationString    `yaml:"stats-cache-max-age,omitempty"`
-	SearchCacheMaxAge DurationString    `yaml:"search-cache-max-age,omitempty"`
-	Database          string            `yaml:"database,omitempty"`
-	AccessLog         string            `yaml:"access-log"`
-	MinUploadPartSize int64             `json:"min-upload-part-size"`
-	MaxUploadPartSize int64             `json:"max-upload-part-size"`
-	MaxUploadParts    int               `json:"max-upload-parts"`
+	MongoURL            string            `yaml:"mongo-url,omitempty"`
+	AuditLogFile        string            `yaml:"audit-log-file,omitempty"`
+	AuditLogMaxSize     int               `yaml:"audit-log-max-size,omitempty"`
+	AuditLogMaxAge      int               `yaml:"audit-log-max-age,omitempty"`
+	APIAddr             string            `yaml:"api-addr,omitempty"`
+	AuthUsername        string            `yaml:"auth-username,omitempty"`
+	AuthPassword        string            `yaml:"auth-password,omitempty"`
+	ESAddr              string            `yaml:"elasticsearch-addr,omitempty"` // elasticsearch is optional
+	IdentityPublicKey   *bakery.PublicKey `yaml:"identity-public-key,omitempty"`
+	IdentityLocation    string            `yaml:"identity-location"`
+	TermsPublicKey      *bakery.PublicKey `yaml:"terms-public-key,omitempty"`
+	TermsLocation       string            `yaml:"terms-location,omitempty"`
+	AgentUsername       string            `yaml:"agent-username,omitempty"`
+	AgentKey            *bakery.KeyPair   `yaml:"agent-key,omitempty"`
+	MaxMgoSessions      int               `yaml:"max-mgo-sessions,omitempty"`
+	RequestTimeout      DurationString    `yaml:"request-timeout,omitempty"`
+	StatsCacheMaxAge    DurationString    `yaml:"stats-cache-max-age,omitempty"`
+	SearchCacheMaxAge   DurationString    `yaml:"search-cache-max-age,omitempty"`
+	Database            string            `yaml:"database,omitempty"`
+	AccessLog           string            `yaml:"access-log"`
+	MinUploadPartSize   int64             `yaml:"min-upload-part-size"`
+	MaxUploadPartSize   int64             `yaml:"max-upload-part-size"`
+	MaxUploadParts      int               `yaml:"max-upload-parts"`
+	AzureStorageAccount string            `yaml:"azure-storage-account"`
+	AzureStorageKey     string            `yaml:"azure-storage-key"`
 }
 
 func (c *Config) validate() error {

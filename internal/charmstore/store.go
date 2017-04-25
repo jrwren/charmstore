@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Azure/azure-sdk-for-go/storage"
 	"github.com/juju/loggo"
 	"github.com/juju/utils/parallel"
 	"gopkg.in/errgo.v1"
@@ -76,6 +77,9 @@ type Pool struct {
 
 	// rootKeys holds the cache of macaroon root keys.
 	rootKeys *mgostorage.RootKeys
+
+	// azure storage
+	bsc storage.BlobStorageClient
 }
 
 // reqStoreCacheSize holds the maximum number of store
@@ -98,6 +102,10 @@ func NewPool(db *mgo.Database, si *SearchIndex, bakeryParams *bakery.NewServiceP
 	if config.StatsCacheMaxAge == 0 {
 		config.StatsCacheMaxAge = time.Hour
 	}
+	sc, err := storage.NewBasicClient(config.AzureStorageAccount, config.AzureStorageKey)
+	if err != nil {
+		return nil, errgo.Notef(err, "could not create azure BasicClient")
+	}
 
 	p := &Pool{
 		db:          StoreDatabase{db}.copy(),
@@ -107,6 +115,7 @@ func NewPool(db *mgo.Database, si *SearchIndex, bakeryParams *bakery.NewServiceP
 		run:         parallel.NewRun(maxAsyncGoroutines),
 		auditLogger: config.AuditLogger,
 		rootKeys:    mgostorage.NewRootKeys(100),
+		bsc:         sc.GetBlobService(),
 	}
 	if config.MaxMgoSessions > 0 {
 		p.reqStoreC = make(chan *Store, config.MaxMgoSessions)
@@ -188,7 +197,7 @@ func (p *Pool) RequestStore() (*Store, error) {
 }
 
 func (p *Pool) newBlobStore(db StoreDatabase) *blobstore.Store {
-	bs := blobstore.New(db.Database, "entitystore")
+	bs := blobstore.New(db.Database, "entitystore", "entitystore", p.bsc)
 	if p.config.MinUploadPartSize != 0 {
 		bs.MinPartSize = p.config.MinUploadPartSize
 	}

@@ -105,6 +105,8 @@ func serve(confPath string) error {
 		MaxUploadPartSize:       conf.MaxUploadPartSize,
 		MaxUploadParts:          conf.MaxUploadParts,
 		RunBlobStoreGC:          true,
+		AzureStorageAccount:     conf.AzureStorageAccount,
+		AzureStorageKey:         conf.AzureStorageKey,
 	}
 
 	if conf.AuditLogFile != "" {
