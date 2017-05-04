@@ -102,7 +102,7 @@ func NewPool(db *mgo.Database, si *SearchIndex, bakeryParams *bakery.NewServiceP
 	if config.StatsCacheMaxAge == 0 {
 		config.StatsCacheMaxAge = time.Hour
 	}
-	sc, err := storage.NewBasicClient(config.AzureStorageAccount, config.AzureStorageKey)
+	sc, err := storage.NewClient(config.AzureStorageAccount, config.AzureStorageKey, storage.DefaultBaseURL, storage.DefaultAPIVersion, false)
 	if err != nil {
 		return nil, errgo.Notef(err, "could not create azure BasicClient")
 	}
